@@ -1,0 +1,21 @@
+name: Deploy Lambda
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.0
+      - run: |
+          cd infra/terraform
+          terraform init
+          terraform apply -auto-approve
+        env:
+          TF_VAR_gitlab_token: ${{ secrets.GITLAB_TOKEN }}
