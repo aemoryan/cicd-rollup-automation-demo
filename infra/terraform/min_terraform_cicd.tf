@@ -44,7 +44,7 @@ resource "aws_lambda_function" "cicd_rollup" {
 
   environment {
     variables = {
-      GITLAB_TOKEN  = var.gitlab_token
+      GIT_PAT  = var.git_pat
       GIT_REMOTE_URL = var.git_remote_url
       API_BASE       = var.api_base
     }
@@ -52,7 +52,7 @@ resource "aws_lambda_function" "cicd_rollup" {
 }
 
 # --- Variables ---
-variable "gitlab_token" {}
+variable "git_pat" {}
 variable "git_remote_url" {}
 variable "api_base" {}
 
@@ -106,7 +106,7 @@ resource "aws_lambda_function" "cicd_rollup" {
   
 environment {
       variables = {
-        GITLAB_TOKEN  = var.gitlab_token
+        GIT_PAT  = var.git_pat
         GIT_REMOTE_URL = var.git_remote_url
         API_BASE       = var.api_base
       }
