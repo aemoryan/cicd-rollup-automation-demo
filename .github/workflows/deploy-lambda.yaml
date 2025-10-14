@@ -18,4 +18,4 @@ jobs:
           terraform init
           terraform apply -auto-approve
         env:
-          TF_VAR_gitlab_token: ${{ secrets.GITLAB_TOKEN }}
+          TF_VAR_gitlab_token: ${{ secrets.GIT_PAT }}

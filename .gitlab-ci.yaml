@@ -1,14 +1,35 @@
-stages:
-  - deploy
+name: Deploy Lambda
 
-deploy_lambda:
-  stage: deploy
-  image: hashicorp/terraform:1.8
-  script:
-    - cd infra/terraform
-    - terraform init
-    - terraform apply -auto-approve
-  variables:
-    TF_VAR_gitlab_token: "$GITLAB_TOKEN"
-  only:
-    - main
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.0
+
+      - name: Initialize and Apply Terraform
+        run: |
+          cd infra/terraform
+          terraform init -input=false
+          terraform apply -auto-approve -input=false
+        env:
+          # --- AWS credentials for Terraform ---
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+
+          # --- Terraform input variables (become Lambda env vars) ---
+          TF_VAR_git_pat: ${{ secrets.GIT_PAT }}
+          TF_VAR_git_remote_url: ${{ secrets.GIT_REMOTE_URL }}
+          TF_VAR_api_base: ${{ secrets.API_BASE }}
+

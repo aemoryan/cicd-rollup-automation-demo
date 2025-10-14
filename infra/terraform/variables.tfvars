@@ -1,5 +1,5 @@
 # GitLab or GitHub token
-variable "gitlab_token" {
+variable "git_pat" {
   description = "Private access token for GitLab API (repo + MR access)."
   type        = string
   sensitive   = true
