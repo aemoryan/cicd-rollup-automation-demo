@@ -1,8 +1,6 @@
 name: Deploy Lambda
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -29,7 +27,7 @@ jobs:
           AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
 
           # --- Terraform input variables (become Lambda env vars) ---
-          TF_VAR_github_pat: ${{ secrets.GIT_PAT }}
+          TF_VAR_git_pat: ${{ secrets.GIT_PAT }}
           TF_VAR_git_remote_url: ${{ secrets.GIT_REMOTE_URL }}
           TF_VAR_api_base: ${{ secrets.API_BASE }}
 
