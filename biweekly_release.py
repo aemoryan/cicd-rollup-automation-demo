@@ -1,209 +1,168 @@
-import re
 import os
-from pathlib import Path
-import subprocess
-import gitlab
-from datetime import date
+import re
 import json
-import urllib.parse
+from datetime import date, datetime, timedelta
+from pathlib import Path
+import requests
 
-# Config
-REPO_PATH = Path(os.getenv("CI_PROJECT_DIR", "."))  # GitLab auto-sets this
-INIT_PATH = REPO_PATH / "demo_package" / "__init__.py"
+# --- CONFIG ---
+REPO_PATH = Path("/tmp/repo")           # Lambda's writable temp dir
+INIT_PATH = Path("demo_package/__init__.py")  # relative path in repo
 SPRINT_BRANCH_PREFIX = "s"
 MAIN_BRANCH = "main"
-GIT_PAT = os.getenv("GIT_PAT")
-GITLAB_PROJECT_ID = os.getenv("CI_PROJECT_ID")
 START_DATE = date(2025, 7, 3)
-REMOTE_URL = os.getenv("GIT_REMOTE_URL")
-PROJECT_PATH = os.environ["CI_PROJECT_PATH"]
-ENCODED_PATH = urllib.parse.quote_plus(PROJECT_PATH)
-API_BASE = os.getenv("API_BASE")
+
+GITHUB_TOKEN = os.getenv("GITHUB_PAT")
+REPO = os.getenv("GIT_REMOTE_URL", "")
+API_BASE = os.getenv("API_BASE")  # e.g. https://api.github.com/repos/aemoryan/cicd-rollup-automation-demo
 
 today = date.today()
+HEADERS = {
+    "Authorization": f"token {GITHUB_TOKEN}",
+    "Accept": "application/vnd.github+json"
+}
 
+# --- HELPERS ---
+def is_release_day():
+    return ((today - START_DATE).days // 7) % 2 == 0
+
+def github_get(endpoint):
+    r = requests.get(f"{API_BASE}{endpoint}", headers=HEADERS)
+    r.raise_for_status()
+    return r.json()
+
+def github_post(endpoint, payload):
+    r = requests.post(f"{API_BASE}{endpoint}", headers=HEADERS, json=payload)
+    r.raise_for_status()
+    return r.json()
+
+def github_put(endpoint, payload):
+    r = requests.put(f"{API_BASE}{endpoint}", headers=HEADERS, json=payload)
+    r.raise_for_status()
+    return r.json()
+
+# --- VERSION HANDLING ---
 def bump_version():
-    lines = INIT_PATH.read_text().splitlines()
-    version_pattern = r'__version__\s*=\s*"(\d+)\.(\d+)\.(\d+)"'
+    text = Path(INIT_PATH).read_text().splitlines()
+    pattern = r'__version__\s*=\s*"(\d+)\.(\d+)\.(\d+)"'
+    for i, line in enumerate(text):
+        m = re.search(pattern, line)
+        if m:
+            major, sprint, patch = map(int, m.groups())
+            new_version = f'{major}.{sprint + 1}.0'
+            text[i] = f'__version__ = "{new_version}"'
+            Path(INIT_PATH).write_text("\n".join(text) + "\n")
+            return sprint + 1, new_version
+    raise RuntimeError("No valid version string found.")
 
-    for i, line in enumerate(lines):
-        if line.startswith("__version__"):
-            match = re.search(version_pattern, line)
-            if match:
-                major, sprint, patch = map(int, match.groups())
-                new_version = f'{major}.{sprint + 1}.0'
-                lines[i] = f'__version__ = "{new_version}"'
-                INIT_PATH.write_text("\n".join(lines) + "\n")
-                return sprint + 1, new_version
-    raise RuntimeError("Version line not found or malformed.")
-
-def git(*args):
-    subprocess.run(["git"] + list(args), check=True)
-
-def remote_branch_exists(branch_name):
-    """Checks if a remote branch exists."""
-    result = subprocess.run(
-        ["git", "ls-remote", "--heads", "origin", branch_name],
-        stdout=subprocess.PIPE,
-        text=True
-    )
-    return branch_name in result.stdout
-
-def get_latest_tag():
-    try:
-        result = subprocess.run(
-            ["git", "describe", "--tags", "abbrev=0"],
-            stdout = subprocess.PIPE,
-            text = True,
-            check = True
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError:
-        print("No tags found. Starting from scratch.")
-        return None
-
-def get_commits_since(tag):
-    if tag is None:
-        #No prior tag, grab *all commits* leading up to HEAD
-        log_range = "HEAD"
-    else:
-        log_range = f"{tag}..HEAD"
-    
-    try:
-        commits = subprocess.check_output(
-            ["git", "log", log_range, "--pretty=format:%s"]
-        ).decode().strip().split("\n")
-        return [c for c in commits if c]
-    except subprocess.CalledProcessError:
-        return []
-
-def append_changelog(version, commit_text):
-    changelog = REPO_PATH / "CHANGELOG.md"
-    new_entry = f"\n## v{version} - {date.today()}\n\n{commit_text}\n"
-
-    if changelog.exists():
-        old = changelog.read_text()
-        changelog.write_text(new_entry + "\n" + old)
-    else:
-        changelog.write_text("# Changelog\n" + new_entry)
-
+# --- RELEASE LOGIC ---
 def main():
-    #is release day?
-    if ((today - START_DATE).days // 7) % 2 != 0:
-        print("Not a biweekly release Thursday. Skipping")
-        exit(0) 
+    if not is_release_day():
+        print("Not a biweekly release day. Skipping.")
+        return
 
-    # Git operations
-    git("config", "--global", "user.email", "ci@example.com")
-    git("config", "--global", "user.name", "GitLab CI")
-    git("fetch", "--all")
-    git("remote", "set-url", "origin", REMOTE_URL)
+    # Get branches
+    branches = github_get("/branches")
+    branch_names = [b["name"] for b in branches]
 
-    #get current sprint from __init__.py
-    lines = INIT_PATH.read_text().splitlines()
+    # Determine current sprint from __init__.py
+    lines = Path(INIT_PATH).read_text().splitlines()
     for line in lines:
-        if "__version__" in line:
-            match = re.search(r'"(\d+)\.(\d+)\.(\d+)"', line)
-            if match:
-                _, current_sprint, _ = map(int, match.groups())
-                break
+        m = re.search(r'"(\d+)\.(\d+)\.(\d+)"', line)
+        if m:
+            _, current_sprint, _ = map(int, m.groups())
+            break
     else:
-        raise RuntimeError("could not determine current sprint from init")
-
+        raise RuntimeError("Could not determine current sprint from init.")
 
     current_branch = f"{SPRINT_BRANCH_PREFIX}{current_sprint}test"
     next_sprint = current_sprint + 1
     next_branch = f"{SPRINT_BRANCH_PREFIX}{next_sprint}test"
 
-    if remote_branch_exists(current_branch):
-        print(f"Branch {current_branch} exists - proceeding with release.")
-
-        #checkout
-        git("checkout", MAIN_BRANCH)
-        git("pull", "origin", MAIN_BRANCH)
-        git("checkout", "-B", current_branch, f"origin/{current_branch}")
-        git("pull", "origin", current_branch)
-
-        #Merge test with main
-        git("checkout", MAIN_BRANCH)
-        git("merge", "--no-ff", current_branch, "-m", f"Merge {current_branch} into {MAIN_BRANCH}")
-
-        #version bump
-        _, new_version = bump_version()
-        git("add", str(INIT_PATH))
-        git("commit", "-m", f"Bump version to {new_version}")
-
-        #update changelog
-        last_tag = get_latest_tag()
-        commits = get_commits_since(last_tag)
-
-        if commits:
-            commit_summary = "\n".join(f"- {msg}" for msg in commits)
-        else:
-            commit_summary = "Initial release." if last_tag is None else "No new commits."
-            
-        append_changelog(new_version, commit_summary)
-
-        #stage and commit change log
-        git("add", "CHANGELOG.md")
-        git("commit", "-m", f"Update changelog for v{new_version}")
-
-        #Tag and push
-        git("tag", f"v{new_version}")
-        git("push", "origin", MAIN_BRANCH, "--tags")
-        git("push", "origin", MAIN_BRANCH)
-    
+    if current_branch in branch_names:
+        print(f"Branch {current_branch} exists — proceeding with release.")
     else:
-        print(f"Branch {current_branch} does not exist - skipping merge, version bump, and tag.")
-        git("checkout", MAIN_BRANCH)
-        git("pull", "origin", MAIN_BRANCH)
-    
-    #Create next sprint branch and push
-    git("checkout", "-B", next_branch, MAIN_BRANCH)
-    git("push", "-u", "origin", next_branch)
-    
-    #Check for existing MR
-    print(f"Checking for existing MRs from {current_branch}")
+        print(f"Branch {current_branch} not found. Creating next sprint branch.")
+        payload = {"ref": next_branch, "sha": github_get(f'/branches/{MAIN_BRANCH}')["commit"]["sha"]}
+        github_post("/git/refs", payload)
+        print(f"Created new branch {next_branch}.")
+        return
 
-    mr_list_cmd = [
-        "curl", "--silent", "--header", f"PRIVATE-TOKEN: {GITLAB_TOKEN}",
-        f"{API_BASE}/merge_requests?source_branch={current_branch}&target_branch={MAIN_BRANCH}&state=opened"
-    ]
-    result = subprocess.run(mr_list_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-    existing_mrs = json.loads(result.stdout.decode().strip() or "[]")
+    # Bump version locally
+    _, new_version = bump_version()
 
-    if existing_mrs:
-        mr = existing_mrs[0]
-        mr_iid = mr["iid"]
-        print(f"Closing stale MR #{mr_iid} from {current_branch} to {MAIN_BRANCH}")
-        close_cmd = [
-            "curl", "--request", "PUT",
-            "--header", f"PRIVATE-TOKEN: {GITLAB_TOKEN}",
-            f"{API_BASE}/merge_requests/{mr_iid}?state_event=close"
-        ]
-        subprocess.run(close_cmd, check=True)
-    else:
-        print("No existing open MR to close.")
+    # Commit version bump directly via API
+    with open(INIT_PATH) as f:
+        content = f.read()
+    encoded_content = content.encode("utf-8").decode("utf-8")
 
-    print(f"creating new MR from {current_branch} to {MAIN_BRANCH}")
+    sha = github_get(f"/contents/{INIT_PATH}?ref={MAIN_BRANCH}")["sha"]
+    commit_payload = {
+        "message": f"Bump version to {new_version}",
+        "content": encoded_content.encode("utf-8").hex(),
+        "sha": sha,
+        "branch": MAIN_BRANCH
+    }
+    github_put(f"/contents/{INIT_PATH}", commit_payload)
+    print(f"Bumped version to {new_version} on {MAIN_BRANCH}.")
 
-    mr_payload = json.dumps({
-        "source_branch": next_branch,
-        "target_branch": MAIN_BRANCH,
+    # Create changelog entry
+    changelog_path = "CHANGELOG.md"
+    changelog_exists = True
+    try:
+        changelog_sha = github_get(f"/contents/{changelog_path}?ref={MAIN_BRANCH}")["sha"]
+        old_content = requests.get(github_get(f"/contents/{changelog_path}?ref={MAIN_BRANCH}")["download_url"]).text
+    except requests.exceptions.HTTPError:
+        changelog_exists = False
+        changelog_sha = None
+        old_content = "# Changelog\n"
+
+    new_entry = f"\n## v{new_version} - {today}\n\n- Automated biweekly release\n"
+    new_content = new_entry + "\n" + old_content
+
+    changelog_payload = {
+        "message": f"Update changelog for v{new_version}",
+        "content": new_content.encode("utf-8").hex(),
+        "branch": MAIN_BRANCH
+    }
+    if changelog_exists:
+        changelog_payload["sha"] = changelog_sha
+
+    github_put(f"/contents/{changelog_path}", changelog_payload)
+    print("Changelog updated.")
+
+    # Tag release
+    latest_commit_sha = github_get(f"/branches/{MAIN_BRANCH}")["commit"]["sha"]
+    tag_payload = {
+        "tag": f"v{new_version}",
+        "message": f"Release v{new_version}",
+        "object": latest_commit_sha,
+        "type": "commit"
+    }
+    github_post("/git/tags", tag_payload)
+    ref_payload = {"ref": f"refs/tags/v{new_version}", "sha": latest_commit_sha}
+    github_post("/git/refs", ref_payload)
+    print(f"Tagged v{new_version}.")
+
+    # Create Pull Request
+    prs = github_get(f"/pulls?head={current_branch}&base={MAIN_BRANCH}&state=open")
+    if prs:
+        pr_number = prs[0]["number"]
+        print(f"Closing stale PR #{pr_number} from {current_branch}.")
+        github_post(f"/issues/{pr_number}/comments", {"body": "Closing stale PR."})
+        github_post(f"/issues/{pr_number}", {"state": "closed"})
+
+    print("Creating new PR for next sprint.")
+    pr_payload = {
         "title": f"Biweekly merge: {next_branch} into {MAIN_BRANCH}",
-        "remove_source_branch": False
-    })
-
-    create_cmd = [
-        "curl", "--request", "POST",
-        "--header", f"PRIVATE-TOKEN: {GITLAB_TOKEN}",
-        "--header", "Content-Type: application/json",
-        "--data", mr_payload,
-        f"{API_BASE}/merge_requests"
-    ]
-    subprocess.run(create_cmd, check = True)
-    print("Merge request created")
+        "head": next_branch,
+        "base": MAIN_BRANCH,
+        "body": f"Automated biweekly roll-up for sprint {next_sprint}."
+    }
+    github_post("/pulls", pr_payload)
+    print("Pull request created successfully.")
 
 if __name__ == "__main__":
     main()
+
 

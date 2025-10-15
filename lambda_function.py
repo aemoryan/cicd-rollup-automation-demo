@@ -14,7 +14,7 @@ def handler(event, context):
     repo_url = event.get("repo_url")
     project_id = event.get("project_id")
     project_path = event.get("project_path")
-    gitlab_token = os.environ["GITLAB_TOKEN"]
+    gitlab_token = os.environ["GIT_PAT"]
     api_base = event.get("api_base")
 
     # Create a temp working dir for the repo
@@ -32,7 +32,7 @@ def handler(event, context):
     os.environ["CI_PROJECT_DIR"] = tmpdir
     os.environ["CI_PROJECT_ID"] = str(project_id)
     os.environ["CI_PROJECT_PATH"] = project_path
-    os.environ["GITLAB_TOKEN"] = gitlab_token
+    os.environ["GIT_PAT"] = gitlab_token
     os.environ["API_BASE"] = api_base
 
     print("Environment configured. Running roll-up script.")
