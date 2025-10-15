@@ -9,16 +9,16 @@ import urllib.parse
 
 # Config
 REPO_PATH = Path(os.getenv("CI_PROJECT_DIR", "."))  # GitLab auto-sets this
-INIT_PATH = REPO_PATH / "my_package" / "__init__.py"
+INIT_PATH = REPO_PATH / "demo_package" / "__init__.py"
 SPRINT_BRANCH_PREFIX = "s"
-MAIN_BRANCH = "prod"
-GITLAB_TOKEN = os.getenv("GITLAB_TOKEN")
+MAIN_BRANCH = "main"
+GIT_PAT = os.getenv("GIT_PAT")
 GITLAB_PROJECT_ID = os.getenv("CI_PROJECT_ID")
 START_DATE = date(2025, 7, 3)
-REMOTE_URL = f'https://url/to/gitlab'
+REMOTE_URL = os.getenv("GIT_REMOTE_URL")
 PROJECT_PATH = os.environ["CI_PROJECT_PATH"]
 ENCODED_PATH = urllib.parse.quote_plus(PROJECT_PATH)
-API_BASE = f'https://api_base_path'
+API_BASE = os.getenv("API_BASE")
 
 today = date.today()
 
