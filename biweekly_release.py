@@ -12,7 +12,7 @@ SPRINT_BRANCH_PREFIX = "s"
 MAIN_BRANCH = "main"
 START_DATE = date(2025, 7, 3)
 
-GITHUB_TOKEN = os.getenv("GITHUB_PAT")
+GITHUB_TOKEN = os.getenv("GIT_PAT")
 REPO = os.getenv("GIT_REMOTE_URL", "")
 API_BASE = os.getenv("API_BASE")  # e.g. https://api.github.com/repos/aemoryan/cicd-rollup-automation-demo
 
