@@ -43,13 +43,13 @@ EventBridge (biweekly trigger)
         ↓
 AWS Lambda (biweekly_release.py)
         ↓
-GitHub API
+$\texttt{\`\`\`}$GitHub API
   ├── Create sprint branch (sNtest) \*
   ├── Bump version (__init__.py) \*
   ├── Update CHANGELOG.md \*
   ├── Tag commit (vX.Y.Z) \*
   ├── Merge/close prior PRs \*
-  └── Open new PR for next sprint \*
+  └── Open new PR for next sprint \*$\texttt{\`\`\`}$
 
 #### Features
 * Completely serverless --> No persistent compute.
