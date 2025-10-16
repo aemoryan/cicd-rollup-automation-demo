@@ -68,9 +68,9 @@ GitHub API
 Create an IAM user (e.g. github-terraform-deployer) with:
 * AdministratorAccess (for demo simplicity)
 * Access key & secret key stored in GitHub/GitLab --> **settings** > **secrets** > **actions**
-        * AWS_ACCESS_KEY_ID
-        * AWS_SECRET_ACCESS_KEY
-        * AWS_DEFAULT_REGION
+  * AWS_ACCESS_KEY_ID
+  * AWS_SECRET_ACCESS_KEY
+  * AWS_DEFAULT_REGION
 
 #### 2. Configure Terraform Variables
 In your repo or CI environment:
