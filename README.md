@@ -43,13 +43,13 @@ EventBridge (biweekly trigger)
         ↓
 AWS Lambda (biweekly_release.py)
         ↓
-$\texttt{\`\`\`}$GitHub API
-  ├── Create sprint branch (sNtest) \*
-  ├── Bump version (__init__.py) \*
-  ├── Update CHANGELOG.md \*
-  ├── Tag commit (vX.Y.Z) \*
-  ├── Merge/close prior PRs \*
-  └── Open new PR for next sprint \*$\texttt{\`\`\`}$
+GitHub API
+*  ├── Create sprint branch (sNtest) \*
+*  ├── Bump version (__init__.py) \*
+*  ├── Update CHANGELOG.md \*
+*  ├── Tag commit (vX.Y.Z) \*
+*  ├── Merge/close prior PRs \*
+*  └── Open new PR for next sprint \*$\texttt{\`\`\`}$
 
 #### Features
 * Completely serverless --> No persistent compute.
@@ -60,4 +60,44 @@ $\texttt{\`\`\`}$GitHub API
 * Branch and PR lifecycle management via GitHub API
 * Temporary directory cleanup between runs
 * Extensible for build or deployment hooks
+---
+### Deployment Steps
+#### 1. Prepare AWS Credentials
+Create an IAM user (e.g. github-terraform-deployer) with:
+* AdministratorAccess (for demo simplicity)
+* Access key & secret key stored in GitHub/GitLab --> **settings** > **secrets** > **actions**
+        * AWS_ACCESS_KEY_ID
+        * AWS_SECRET_ACCESS_KEY
+        * AWS_DEFAULT_REGION
+
+#### 2. Configure Terraform Variables
+In your repo or CI environment:
+
+`````TF_VAR_git_pat=your_personal_access_token
+TF_VAR_git_remote_url=https://github.com/<user>/<repo>.git
+TF_VAR_api_base=https://api.github.com/repos/<user>/<repo>`````
+
+Then deploy:
+
+`````terraform init
+terraform apply -auto-approve`````
+
+#### 3. Package Lambda Code
+From your working directory:
+
+`````pip install -t build requests
+cd build
+zip -r9 ../function.zip .
+cd ..
+zip-g function biweekly_release.py`````
+
+#### 4. Trigger Manually
+You can invoke via AWS console or CLI:
+
+aws lambda invoke --function-name biweekly-release out.log
+
+Or rely on EventBridge for automatic bi-weekly execution.
+
+---
+
 
