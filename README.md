@@ -12,6 +12,8 @@ This repo demonstrates how to implement real CI/CD principles (integration, deli
 
 It's a CI/CD for the 90%: Cheap, simple, and scalable. 
 
+---
+
 ### Key Concept
 Instead of running your CI/CD pipeline *inside* your Git provider, this demo externalizes orchestration to a serverless Lambda function that:
 
@@ -23,6 +25,8 @@ Instead of running your CI/CD pipeline *inside* your Git provider, this demo ext
 
 Everything happens through **GitHub’s REST API**. No git CLI needed on the Lambda host.
 A 2-week sprint project demonstrating automated version roll-ups, tagging, and branch management in a CICD environment. Designed to reduce manual release management overhead for small data-engineering or analytics teams.
+
+---
 
 ### Architecture
 #### Core Components
@@ -40,20 +44,20 @@ EventBridge (biweekly trigger)
 AWS Lambda (biweekly_release.py)
         ↓
 GitHub API
-  ├── Create sprint branch (sNtest)
-  ├── Bump version (__init__.py)
-  ├── Update CHANGELOG.md
-  ├── Tag commit (vX.Y.Z)
-  ├── Merge/close prior PRs
-  └── Open new PR for next sprint
+  ├── Create sprint branch (sNtest) \*
+  ├── Bump version (__init__.py) \*
+  ├── Update CHANGELOG.md \*
+  ├── Tag commit (vX.Y.Z) \*
+  ├── Merge/close prior PRs \*
+  └── Open new PR for next sprint \*
 
 #### Features
--Completely serverless — no persistent compute
--Zero runner cost — executes in Lambda, deploys via Terraform
--Automated versioning (__version__ bump)
--Bi-weekly sprint cycles controlled by a start date constant
--Changelog generation and tagging
--Branch and PR lifecycle management via GitHub API
--Temporary directory cleanup between runs
--Extensible for build or deployment hooks
+* Completely serverless --> No persistent compute.
+* Zero runner cost --> executes in Lambda, deploys via Terraform
+* Automated versioning (__version__ bump)
+* Bi-weekly sprint cycles controlled by a start date constant
+* Changelog generation and tagging
+* Branch and PR lifecycle management via GitHub API
+* Temporary directory cleanup between runs
+* Extensible for build or deployment hooks
 
