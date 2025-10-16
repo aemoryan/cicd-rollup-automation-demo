@@ -1,5 +1,4 @@
-# cicd-rollup-automation-demo
-🌀 Serverless CI/CD Roll-Up Automation Demo
+Serverless CI/CD Roll-Up Automation Demo A lightweight, zero-runner, Lambda-driven CI/CD pipeline for small teams
 A lightweight, zero-runner, Lambda-driven CI/CD pipeline for small teams
 🚀 Overview
 
