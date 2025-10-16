@@ -73,28 +73,36 @@ Create an IAM user (e.g. github-terraform-deployer) with:
 #### 2. Configure Terraform Variables
 In your repo or CI environment:
 
-`````TF_VAR_git_pat=your_personal_access_token
+```
+TF_VAR_git_pat=your_personal_access_token
 TF_VAR_git_remote_url=https://github.com/<user>/<repo>.git
-TF_VAR_api_base=https://api.github.com/repos/<user>/<repo>`````
+TF_VAR_api_base=https://api.github.com/repos/<user>/<repo>
+```
 
 Then deploy:
 
-`````terraform init
-terraform apply -auto-approve`````
+```
+terraform init
+terraform apply -auto-approve
+```
 
 #### 3. Package Lambda Code
 From your working directory:
 
-`````pip install -t build requests
+```
+pip install -t build requests
 cd build
 zip -r9 ../function.zip .
 cd ..
-zip-g function biweekly_release.py`````
+zip-g function biweekly_release.py
+```
 
 #### 4. Trigger Manually
 You can invoke via AWS console or CLI:
 
+```
 aws lambda invoke --function-name biweekly-release out.log
+```
 
 Or rely on EventBridge for automatic bi-weekly execution.
 
