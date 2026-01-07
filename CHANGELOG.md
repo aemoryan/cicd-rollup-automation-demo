@@ -1,4 +1,9 @@
 
+## v0.4.0 - 2025-10-29
+
+- Automated biweekly release
+
+
 ## v0.2.0 - 2025-10-15
 
 - Automated biweekly release
